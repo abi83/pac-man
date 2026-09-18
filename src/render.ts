@@ -1,0 +1,54 @@
+/** POC for https://github.com/abi83/interns/ **/
+import { getCellType, MAZE_COLUMNS, MAZE_ROWS, TILE_SIZE } from "./maze";
+
+const WALL_COLOR = "#2121de";
+const DOT_COLOR = "#ffb8ae";
+const DOT_RADIUS = 2;
+const POWER_PELLET_RADIUS = 6;
+
+export function renderMaze(context: CanvasRenderingContext2D): void {
+  for (let row = 0; row < MAZE_ROWS; row++) {
+    for (let column = 0; column < MAZE_COLUMNS; column++) {
+      drawCell(context, row, column);
+    }
+  }
+}
+
+function drawCell(
+  context: CanvasRenderingContext2D,
+  row: number,
+  column: number
+): void {
+  const x = column * TILE_SIZE;
+  const y = row * TILE_SIZE;
+  const centerX = x + TILE_SIZE / 2;
+  const centerY = y + TILE_SIZE / 2;
+
+  switch (getCellType(row, column)) {
+    case "wall":
+      context.fillStyle = WALL_COLOR;
+      context.fillRect(x, y, TILE_SIZE, TILE_SIZE);
+      return;
+    case "dot":
+      context.fillStyle = DOT_COLOR;
+      drawCircle(context, centerX, centerY, DOT_RADIUS);
+      return;
+    case "power-pellet":
+      context.fillStyle = DOT_COLOR;
+      drawCircle(context, centerX, centerY, POWER_PELLET_RADIUS);
+      return;
+    case "path":
+      return;
+  }
+}
+
+function drawCircle(
+  context: CanvasRenderingContext2D,
+  centerX: number,
+  centerY: number,
+  radius: number
+): void {
+  context.beginPath();
+  context.arc(centerX, centerY, radius, 0, Math.PI * 2);
+  context.fill();
+}
