@@ -1,10 +1,13 @@
 /** POC for https://github.com/abi83/interns/ **/
 import { getCellType, MAZE_COLUMNS, MAZE_ROWS, TILE_SIZE } from "./maze";
+import type { Player } from "./player";
 
 const WALL_COLOR = "#2121de";
 const DOT_COLOR = "#ffb8ae";
 const DOT_RADIUS = 2;
 const POWER_PELLET_RADIUS = 6;
+const PLAYER_COLOR = "#ffff00";
+const PLAYER_RADIUS = TILE_SIZE / 2 - 1;
 
 export function renderMaze(context: CanvasRenderingContext2D): void {
   for (let row = 0; row < MAZE_ROWS; row++) {
@@ -12,6 +15,19 @@ export function renderMaze(context: CanvasRenderingContext2D): void {
       drawCell(context, row, column);
     }
   }
+}
+
+export function drawPlayer(
+  context: CanvasRenderingContext2D,
+  player: Player
+): void {
+  context.fillStyle = PLAYER_COLOR;
+  drawCircle(
+    context,
+    player.x + TILE_SIZE / 2,
+    player.y + TILE_SIZE / 2,
+    PLAYER_RADIUS
+  );
 }
 
 function drawCell(
