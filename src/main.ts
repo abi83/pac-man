@@ -1,7 +1,8 @@
 /** POC for https://github.com/abi83/interns/ **/
 import { CANVAS_WIDTH, CANVAS_HEIGHT } from "./canvas";
 import { renderMaze, drawGhosts, drawPlayer, drawScore } from "./render";
-import { createGhosts, updateGhost } from "./ghost";
+import { advanceGhostMode, createGhostModeState, createGhosts, updateGhost } from "./ghost";
+import { TILE_SIZE } from "./maze";
 import {
   createPlayer,
   eatDotUnderPlayer,
@@ -28,6 +29,7 @@ if (!context) {
 
 const player = createPlayer();
 const ghosts = createGhosts();
+const ghostModeState = createGhostModeState();
 const score = createScore();
 
 const KEY_DIRECTIONS: Record<string, Direction> = {
@@ -44,16 +46,21 @@ document.addEventListener("keydown", (event) => {
   }
 });
 
-function tick(): void {
+function tick(context: CanvasRenderingContext2D): void {
   updatePlayer(player);
-  ghosts.forEach(updateGhost);
+  advanceGhostMode(ghostModeState);
+  const playerRow = player.y / TILE_SIZE;
+  const playerColumn = player.x / TILE_SIZE;
+  ghosts.forEach((ghost) =>
+    updateGhost(ghost, ghostModeState.mode, playerRow, playerColumn, player.direction)
+  );
   eatDotUnderPlayer(player, score);
   context.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
   renderMaze(context);
   drawPlayer(context, player);
   drawGhosts(context, ghosts);
   drawScore(context, score.value);
-  requestAnimationFrame(tick);
+  requestAnimationFrame(() => tick(context));
 }
 
-requestAnimationFrame(tick);
+requestAnimationFrame(() => tick(context));
