@@ -134,7 +134,7 @@ describe("eatDotUnderPlayer", () => {
 
   it("does nothing while the player is not tile-aligned", () => {
     const player: Player = {
-      x: 4 * TILE_SIZE + 1,
+      x: 6 * TILE_SIZE + 1,
       y: 1 * TILE_SIZE,
       direction: "right",
       desiredDirection: "right",
@@ -143,7 +143,7 @@ describe("eatDotUnderPlayer", () => {
 
     eatDotUnderPlayer(player, score);
 
-    expect(getCellType(1, 4)).toBe("dot");
+    expect(getCellType(1, 6)).toBe("dot");
     expect(score.value).toBe(0);
   });
 

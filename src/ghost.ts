@@ -1,18 +1,50 @@
 /** POC for https://github.com/abi83/interns/ **/
-import { getCellType, MAZE_COLUMNS, TILE_SIZE } from "./maze";
+import { getCellType, MAZE_COLUMNS, MAZE_ROWS, TILE_SIZE } from "./maze";
 import type { Direction } from "./player";
 
 export interface Ghost {
+  id: number;
   x: number;
   y: number;
   direction: Direction;
 }
 
+export type GhostMode = "chase" | "scatter";
+
+export interface GhostModeState {
+  mode: GhostMode;
+  ticksRemaining: number;
+}
+
+interface Tile {
+  row: number;
+  column: number;
+}
+
 export const GHOST_SPEED = 2;
 export const GHOST_COUNT = 4;
 
+// Classic Pac-Man cadence: 7s scattering to a corner, then 20s chasing, at
+// the 60fps tick rate driven by main.ts's requestAnimationFrame loop.
+export const SCATTER_MODE_TICKS = 420;
+export const CHASE_MODE_TICKS = 1200;
+
 const SPAWN_ROW = 11;
 const SPAWN_COLUMNS = [11, 13, 15, 17];
+
+// One corner per ghost id, matching the red/pink/cyan/orange order in
+// render.ts's GHOST_COLORS so each ghost scatters to its own corner.
+const CORNER_TARGETS: readonly Tile[] = [
+  { row: 0, column: MAZE_COLUMNS - 1 },
+  { row: 0, column: 0 },
+  { row: MAZE_ROWS - 1, column: MAZE_COLUMNS - 1 },
+  { row: MAZE_ROWS - 1, column: 0 },
+];
+
+// Ghost id 1 (pink) leads the player instead of targeting its exact tile,
+// giving the pack at least one differentiated chase behaviour.
+const AMBUSH_GHOST_ID = 1;
+const AMBUSH_OFFSET = 4;
 
 const DIRECTIONS: readonly Direction[] = ["up", "down", "left", "right"];
 
@@ -31,32 +63,99 @@ const DIRECTION_VECTORS: Record<Direction, { dx: number; dy: number }> = {
 };
 
 export function createGhosts(): Ghost[] {
-  return SPAWN_COLUMNS.map((column) => ({
+  return SPAWN_COLUMNS.map((column, id) => ({
+    id,
     x: column * TILE_SIZE,
     y: SPAWN_ROW * TILE_SIZE,
     direction: pickRandomDirection(openDirections(SPAWN_ROW, column)),
   }));
 }
 
-export function updateGhost(ghost: Ghost): void {
+export function createGhostModeState(): GhostModeState {
+  return { mode: "scatter", ticksRemaining: SCATTER_MODE_TICKS };
+}
+
+export function advanceGhostMode(state: GhostModeState): void {
+  state.ticksRemaining -= 1;
+  if (state.ticksRemaining > 0) {
+    return;
+  }
+  state.mode = state.mode === "scatter" ? "chase" : "scatter";
+  state.ticksRemaining =
+    state.mode === "scatter" ? SCATTER_MODE_TICKS : CHASE_MODE_TICKS;
+}
+
+export function updateGhost(
+  ghost: Ghost,
+  mode: GhostMode,
+  playerRow: number,
+  playerColumn: number,
+  playerDirection: Direction
+): void {
   if (isTileAligned(ghost)) {
     const row = ghost.y / TILE_SIZE;
     const column = ghost.x / TILE_SIZE;
-    ghost.direction = chooseDirection(row, column, ghost.direction);
+    const target = targetTile(ghost, mode, playerRow, playerColumn, playerDirection);
+    ghost.direction = chooseDirection(row, column, ghost.direction, target);
   }
   move(ghost, ghost.direction);
+}
+
+function targetTile(
+  ghost: Ghost,
+  mode: GhostMode,
+  playerRow: number,
+  playerColumn: number,
+  playerDirection: Direction
+): Tile {
+  if (mode === "scatter") {
+    return CORNER_TARGETS[ghost.id % CORNER_TARGETS.length];
+  }
+  if (ghost.id === AMBUSH_GHOST_ID) {
+    const { dx, dy } = DIRECTION_VECTORS[playerDirection];
+    return {
+      row: playerRow + dy * AMBUSH_OFFSET,
+      column: playerColumn + dx * AMBUSH_OFFSET,
+    };
+  }
+  return { row: playerRow, column: playerColumn };
 }
 
 function chooseDirection(
   row: number,
   column: number,
-  currentDirection: Direction
+  currentDirection: Direction,
+  target: Tile
 ): Direction {
   const options = openDirections(row, column);
   const nonReversing = options.filter(
     (direction) => direction !== OPPOSITE_DIRECTION[currentDirection]
   );
-  return pickRandomDirection(nonReversing.length > 0 ? nonReversing : options);
+  const candidates = nonReversing.length > 0 ? nonReversing : options;
+  return closestDirection(row, column, candidates, target);
+}
+
+function closestDirection(
+  row: number,
+  column: number,
+  directions: readonly Direction[],
+  target: Tile
+): Direction {
+  return directions.reduce((closest, direction) =>
+    tileDistance(resultingTile(row, column, direction), target) <
+    tileDistance(resultingTile(row, column, closest), target)
+      ? direction
+      : closest
+  );
+}
+
+function resultingTile(row: number, column: number, direction: Direction): Tile {
+  const { dx, dy } = DIRECTION_VECTORS[direction];
+  return { row: row + dy, column: column + dx };
+}
+
+function tileDistance(a: Tile, b: Tile): number {
+  return (a.row - b.row) ** 2 + (a.column - b.column) ** 2;
 }
 
 function openDirections(row: number, column: number): Direction[] {

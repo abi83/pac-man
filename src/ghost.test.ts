@@ -1,11 +1,16 @@
 /** POC for https://github.com/abi83/interns/ **/
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { getCellType, MAZE_COLUMNS, TILE_SIZE } from "./maze";
-import { createGhosts, GHOST_COUNT, updateGhost, type Ghost } from "./ghost";
-
-afterEach(() => {
-  vi.restoreAllMocks();
-});
+import {
+  advanceGhostMode,
+  CHASE_MODE_TICKS,
+  createGhostModeState,
+  createGhosts,
+  GHOST_COUNT,
+  SCATTER_MODE_TICKS,
+  updateGhost,
+  type Ghost,
+} from "./ghost";
 
 describe("createGhosts", () => {
   it("spawns GHOST_COUNT ghosts on open path cells", () => {
@@ -23,14 +28,16 @@ describe("createGhosts", () => {
 describe("updateGhost", () => {
   it("advances position when the path ahead is open", () => {
     // Column 1, row 2 is a vertical corridor walled to the left and right,
-    // so continuing "down" is the only non-reversing option.
+    // so continuing "down" is the only non-reversing option regardless of
+    // mode or target.
     const ghost: Ghost = {
+      id: 0,
       x: 1 * TILE_SIZE,
       y: 2 * TILE_SIZE,
       direction: "down",
     };
 
-    updateGhost(ghost);
+    updateGhost(ghost, "chase", 0, 0, "down");
 
     expect(ghost.x).toBe(1 * TILE_SIZE);
     expect(ghost.y).toBe(2 * TILE_SIZE + 2);
@@ -40,13 +47,14 @@ describe("updateGhost", () => {
   it("never enters a wall cell, turning instead at an intersection", () => {
     // Column 1, row 1 is walled to the north; only "right" avoids reversing.
     const ghost: Ghost = {
+      id: 0,
       x: 1 * TILE_SIZE,
       y: 1 * TILE_SIZE,
       direction: "up",
     };
     expect(getCellType(0, 1)).toBe("wall");
 
-    updateGhost(ghost);
+    updateGhost(ghost, "chase", 0, 0, "down");
 
     expect(ghost.direction).toBe("right");
     expect(ghost.x).toBe(1 * TILE_SIZE + 2);
@@ -55,30 +63,31 @@ describe("updateGhost", () => {
 
   it("does not reverse direction at a multi-way intersection", () => {
     // Row 1, column 6 is open down/left/right. Coming from the left (moving
-    // right), "left" is the reversal and must be excluded from the choices,
-    // leaving [down, right]. A midpoint random value would select "left" out
-    // of the unfiltered [down, left, right], so picking "right" proves the
-    // reversal was filtered out rather than picked by chance.
+    // right), "left" is the reversal and must be excluded, leaving
+    // [down, right]. The player is far to the right on the same row, so
+    // "right" is also the closest of those two — proving the reversal was
+    // filtered rather than picked by chance.
     const ghost: Ghost = {
+      id: 0,
       x: 6 * TILE_SIZE,
       y: 1 * TILE_SIZE,
       direction: "right",
     };
-    vi.spyOn(Math, "random").mockReturnValue(0.5);
 
-    updateGhost(ghost);
+    updateGhost(ghost, "chase", 1, 20, "left");
 
     expect(ghost.direction).toBe("right");
   });
 
   it("wraps from the left edge of the tunnel row to the right edge", () => {
     const ghost: Ghost = {
+      id: 0,
       x: 0,
       y: 15 * TILE_SIZE,
       direction: "left",
     };
 
-    updateGhost(ghost);
+    updateGhost(ghost, "chase", 15, 0, "left");
 
     expect(ghost.direction).toBe("left");
     expect(ghost.x).toBe(MAZE_COLUMNS * TILE_SIZE - 2);
@@ -87,14 +96,130 @@ describe("updateGhost", () => {
 
   it("wraps from the right edge of the tunnel row to the left edge", () => {
     const ghost: Ghost = {
+      id: 0,
       x: MAZE_COLUMNS * TILE_SIZE - 2,
       y: 15 * TILE_SIZE,
       direction: "right",
     };
 
-    updateGhost(ghost);
+    updateGhost(ghost, "chase", 15, 27, "right");
 
     expect(ghost.x).toBe(0);
     expect(ghost.y).toBe(15 * TILE_SIZE);
+  });
+
+  describe("chase mode", () => {
+    it("picks the open direction whose resulting tile is closest to the player", () => {
+      // At row 1, column 6, the non-reversing options are [down, right].
+      // A player far down the same column makes "down" the closer choice.
+      const ghost: Ghost = {
+        id: 0,
+        x: 6 * TILE_SIZE,
+        y: 1 * TILE_SIZE,
+        direction: "right",
+      };
+
+      updateGhost(ghost, "chase", 10, 6, "up");
+
+      expect(ghost.direction).toBe("down");
+    });
+
+    it("lets a differentiated ghost target ahead of the player instead of its exact tile", () => {
+      // Ghost id 1 targets a tile 4 tiles out in the player's facing
+      // direction. With the player at (1, 9) facing left, that pulls the
+      // ambush ghost's target to (1, 5) — past the intersection — while
+      // ghost id 0 still targets the player's own tile at (1, 9). The two
+      // targets favor different open directions from the same intersection.
+      const ambushGhost: Ghost = {
+        id: 1,
+        x: 6 * TILE_SIZE,
+        y: 1 * TILE_SIZE,
+        direction: "right",
+      };
+      const directGhost: Ghost = {
+        id: 0,
+        x: 6 * TILE_SIZE,
+        y: 1 * TILE_SIZE,
+        direction: "right",
+      };
+
+      updateGhost(ambushGhost, "chase", 1, 9, "left");
+      updateGhost(directGhost, "chase", 1, 9, "left");
+
+      expect(directGhost.direction).toBe("right");
+      expect(ambushGhost.direction).toBe("down");
+    });
+  });
+
+  describe("scatter mode", () => {
+    // Row 1, column 6 is a 3-way intersection (down/left/right all open),
+    // and none of them reverse a ghost currently heading "down", so all
+    // three stay in play as candidates for both ghosts below.
+    it("picks the open direction whose resulting tile is closest to the ghost's corner", () => {
+      // Ghost id 0 scatters to the top-right corner, so "right" beats both
+      // "down" and "left".
+      const ghost: Ghost = {
+        id: 0,
+        x: 6 * TILE_SIZE,
+        y: 1 * TILE_SIZE,
+        direction: "down",
+      };
+
+      updateGhost(ghost, "scatter", 0, 0, "down");
+
+      expect(ghost.direction).toBe("right");
+    });
+
+    it("assigns each ghost id a different corner", () => {
+      // Ghost id 1 scatters to the top-left corner instead, so from the
+      // same intersection it prefers "left" over "right".
+      const ghost: Ghost = {
+        id: 1,
+        x: 6 * TILE_SIZE,
+        y: 1 * TILE_SIZE,
+        direction: "down",
+      };
+
+      updateGhost(ghost, "scatter", 0, 0, "down");
+
+      expect(ghost.direction).toBe("left");
+    });
+  });
+});
+
+describe("ghost mode alternation", () => {
+  it("starts in scatter mode", () => {
+    const state = createGhostModeState();
+
+    expect(state.mode).toBe("scatter");
+  });
+
+  it("switches from scatter to chase once the scatter duration elapses", () => {
+    const state = createGhostModeState();
+
+    for (let tick = 0; tick < SCATTER_MODE_TICKS - 1; tick++) {
+      advanceGhostMode(state);
+      expect(state.mode).toBe("scatter");
+    }
+    advanceGhostMode(state);
+
+    expect(state.mode).toBe("chase");
+  });
+
+  it("switches back to scatter once the chase duration elapses", () => {
+    const state = createGhostModeState();
+
+    for (let tick = 0; tick < SCATTER_MODE_TICKS; tick++) {
+      advanceGhostMode(state);
+    }
+    expect(state.mode).toBe("chase");
+
+    for (let tick = 0; tick < CHASE_MODE_TICKS - 1; tick++) {
+      advanceGhostMode(state);
+      expect(state.mode).toBe("chase");
+    }
+    advanceGhostMode(state);
+
+    expect(state.mode).toBe("scatter");
   });
 });
