@@ -1,6 +1,7 @@
 /** POC for https://github.com/abi83/interns/ **/
 import { CANVAS_WIDTH, CANVAS_HEIGHT } from "./canvas";
-import { renderMaze, drawPlayer, drawScore } from "./render";
+import { renderMaze, drawGhosts, drawPlayer, drawScore } from "./render";
+import { createGhosts, updateGhost } from "./ghost";
 import {
   createPlayer,
   eatDotUnderPlayer,
@@ -26,6 +27,7 @@ if (!context) {
 }
 
 const player = createPlayer();
+const ghosts = createGhosts();
 const score = createScore();
 
 const KEY_DIRECTIONS: Record<string, Direction> = {
@@ -44,10 +46,12 @@ document.addEventListener("keydown", (event) => {
 
 function tick(): void {
   updatePlayer(player);
+  ghosts.forEach(updateGhost);
   eatDotUnderPlayer(player, score);
   context.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
   renderMaze(context);
   drawPlayer(context, player);
+  drawGhosts(context, ghosts);
   drawScore(context, score.value);
   requestAnimationFrame(tick);
 }
