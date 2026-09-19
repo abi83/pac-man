@@ -8,6 +8,10 @@ const DOT_RADIUS = 2;
 const POWER_PELLET_RADIUS = 6;
 const PLAYER_COLOR = "#ffff00";
 const PLAYER_RADIUS = TILE_SIZE / 2 - 1;
+const SCORE_COLOR = "#ffffff";
+const SCORE_FONT = "12px sans-serif";
+const SCORE_X = 4;
+const SCORE_Y = 12;
 
 export function renderMaze(context: CanvasRenderingContext2D): void {
   for (let row = 0; row < MAZE_ROWS; row++) {
@@ -28,6 +32,15 @@ export function drawPlayer(
     player.y + TILE_SIZE / 2,
     PLAYER_RADIUS
   );
+}
+
+export function drawScore(
+  context: CanvasRenderingContext2D,
+  score: number
+): void {
+  context.fillStyle = SCORE_COLOR;
+  context.font = SCORE_FONT;
+  context.fillText(`Score: ${score}`, SCORE_X, SCORE_Y);
 }
 
 function drawCell(
