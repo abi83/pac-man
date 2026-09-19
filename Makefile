@@ -1,7 +1,14 @@
 .PHONY: test build
 
-test:
+test: node_modules
 	npm test
 
-build:
+build: node_modules
 	npm run build
+
+# Coding agents can only run `make test`/`make build`, not a bare `npm
+# install` — keep dependency install inside these targets so both stay
+# self-sufficient on a fresh checkout.
+node_modules: package.json
+	npm install --no-audit --no-fund --silent
+	@touch node_modules
