@@ -1,5 +1,6 @@
 /** POC for https://github.com/abi83/interns/ **/
-import { getCellType, MAZE_COLUMNS, TILE_SIZE } from "./maze";
+import { eatDot, getCellType, MAZE_COLUMNS, TILE_SIZE } from "./maze";
+import { addDotScore, type Score } from "./score";
 
 export type Direction = "up" | "down" | "left" | "right";
 
@@ -50,6 +51,18 @@ export function updatePlayer(player: Player): void {
 
 function isTileAligned(player: Player): boolean {
   return player.x % TILE_SIZE === 0 && player.y % TILE_SIZE === 0;
+}
+
+export function eatDotUnderPlayer(player: Player, score: Score): void {
+  if (!isTileAligned(player)) {
+    return;
+  }
+  const row = player.y / TILE_SIZE;
+  const column = player.x / TILE_SIZE;
+  if (getCellType(row, column) === "dot") {
+    eatDot(row, column);
+    addDotScore(score);
+  }
 }
 
 function canEnterTileAhead(player: Player, direction: Direction): boolean {

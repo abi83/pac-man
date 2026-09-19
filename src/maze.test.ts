@@ -1,6 +1,7 @@
 /** POC for https://github.com/abi83/interns/ **/
 import { describe, expect, it } from "vitest";
 import {
+  eatDot,
   getCellType,
   MAZE_COLUMNS,
   MAZE_ROWS,
@@ -56,5 +57,31 @@ describe("getCellType", () => {
     expect(() => getCellType(0, -1)).toThrow(RangeError);
     expect(() => getCellType(MAZE_ROWS, 0)).toThrow(RangeError);
     expect(() => getCellType(0, MAZE_COLUMNS)).toThrow(RangeError);
+  });
+});
+
+describe("eatDot", () => {
+  it("turns a dot cell into a path cell", () => {
+    expect(getCellType(1, 1)).toBe("dot");
+    eatDot(1, 1);
+    expect(getCellType(1, 1)).toBe("path");
+  });
+
+  it("does nothing when the cell has already been eaten", () => {
+    eatDot(1, 2);
+    eatDot(1, 2);
+    expect(getCellType(1, 2)).toBe("path");
+  });
+
+  it("leaves power pellets untouched", () => {
+    eatDot(3, 1);
+    expect(getCellType(3, 1)).toBe("power-pellet");
+  });
+
+  it("leaves wall and path cells untouched", () => {
+    eatDot(0, 0);
+    expect(getCellType(0, 0)).toBe("wall");
+    eatDot(11, 10);
+    expect(getCellType(11, 10)).toBe("path");
   });
 });

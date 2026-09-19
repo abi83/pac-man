@@ -1,7 +1,13 @@
 /** POC for https://github.com/abi83/interns/ **/
 import { describe, expect, it } from "vitest";
 import { getCellType, MAZE_COLUMNS, TILE_SIZE } from "./maze";
-import { createPlayer, updatePlayer, type Player } from "./player";
+import {
+  createPlayer,
+  eatDotUnderPlayer,
+  updatePlayer,
+  type Player,
+} from "./player";
+import { createScore, POINTS_PER_DOT } from "./score";
 
 describe("createPlayer", () => {
   it("spawns on an open path cell", () => {
@@ -91,5 +97,69 @@ describe("updatePlayer", () => {
 
     expect(player.x).toBe(0);
     expect(player.y).toBe(15 * TILE_SIZE);
+  });
+});
+
+describe("eatDotUnderPlayer", () => {
+  it("eats the dot under a tile-aligned player and awards points", () => {
+    const player: Player = {
+      x: 4 * TILE_SIZE,
+      y: 1 * TILE_SIZE,
+      direction: "right",
+      desiredDirection: "right",
+    };
+    const score = createScore();
+    expect(getCellType(1, 4)).toBe("dot");
+
+    eatDotUnderPlayer(player, score);
+
+    expect(getCellType(1, 4)).toBe("path");
+    expect(score.value).toBe(POINTS_PER_DOT);
+  });
+
+  it("does not eat the same dot twice", () => {
+    const player: Player = {
+      x: 5 * TILE_SIZE,
+      y: 1 * TILE_SIZE,
+      direction: "right",
+      desiredDirection: "right",
+    };
+    const score = createScore();
+
+    eatDotUnderPlayer(player, score);
+    eatDotUnderPlayer(player, score);
+
+    expect(score.value).toBe(POINTS_PER_DOT);
+  });
+
+  it("does nothing while the player is not tile-aligned", () => {
+    const player: Player = {
+      x: 4 * TILE_SIZE + 1,
+      y: 1 * TILE_SIZE,
+      direction: "right",
+      desiredDirection: "right",
+    };
+    const score = createScore();
+
+    eatDotUnderPlayer(player, score);
+
+    expect(getCellType(1, 4)).toBe("dot");
+    expect(score.value).toBe(0);
+  });
+
+  it("does not award points or affect a power pellet", () => {
+    const player: Player = {
+      x: 1 * TILE_SIZE,
+      y: 3 * TILE_SIZE,
+      direction: "right",
+      desiredDirection: "right",
+    };
+    const score = createScore();
+    expect(getCellType(3, 1)).toBe("power-pellet");
+
+    eatDotUnderPlayer(player, score);
+
+    expect(getCellType(3, 1)).toBe("power-pellet");
+    expect(score.value).toBe(0);
   });
 });

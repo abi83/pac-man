@@ -65,3 +65,10 @@ export function getCellType(row: number, column: number): CellType {
   }
   return MAZE[row][column];
 }
+
+export function eatDot(row: number, column: number): void {
+  if (getCellType(row, column) !== "dot") {
+    return;
+  }
+  MAZE[row][column] = "path";
+}

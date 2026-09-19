@@ -1,12 +1,14 @@
 /** POC for https://github.com/abi83/interns/ **/
 import { CANVAS_WIDTH, CANVAS_HEIGHT } from "./canvas";
-import { renderMaze, drawPlayer } from "./render";
+import { renderMaze, drawPlayer, drawScore } from "./render";
 import {
   createPlayer,
+  eatDotUnderPlayer,
   setDesiredDirection,
   updatePlayer,
   type Direction,
 } from "./player";
+import { createScore } from "./score";
 
 const canvas = document.querySelector<HTMLCanvasElement>("#game");
 
@@ -24,6 +26,7 @@ if (!context) {
 }
 
 const player = createPlayer();
+const score = createScore();
 
 const KEY_DIRECTIONS: Record<string, Direction> = {
   ArrowUp: "up",
@@ -41,9 +44,11 @@ document.addEventListener("keydown", (event) => {
 
 function tick(): void {
   updatePlayer(player);
+  eatDotUnderPlayer(player, score);
   context.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
   renderMaze(context);
   drawPlayer(context, player);
+  drawScore(context, score.value);
   requestAnimationFrame(tick);
 }
 
