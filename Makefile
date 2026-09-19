@@ -10,5 +10,5 @@ build: node_modules
 # install` — keep dependency install inside these targets so both stay
 # self-sufficient on a fresh checkout.
 node_modules: package.json
-	npm install
+	npm install --no-audit --no-fund --silent
 	@touch node_modules
