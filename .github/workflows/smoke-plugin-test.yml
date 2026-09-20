@@ -23,6 +23,8 @@ jobs:
           plugin_marketplaces: |
             https://github.com/anthropics/claude-plugins-official.git
           show_full_output: "true"
+          claude_args: |
+            --allowedTools "Skill"
           prompt: |
             This is a smoke test, not a real review. Do not analyze any code.
 
