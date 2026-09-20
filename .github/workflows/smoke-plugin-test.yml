@@ -1,0 +1,44 @@
+name: Smoke test - plugin skill in headless action
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Claude with code-review plugin installed
+        id: run
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          plugins: |
+            code-review@claude-plugins-official
+          plugin_marketplaces: |
+            https://github.com/anthropics/claude-plugins-official.git
+          show_full_output: "true"
+          prompt: |
+            This is a smoke test, not a real review. Do not analyze any code.
+
+            List every tool available to you whose name contains "Skill" or
+            "skill". Then attempt to invoke the "code-review" capability
+            provided by the installed "code-review" plugin (it ships a
+            commands/code-review.md slash command) using whatever mechanism
+            is actually available to you in this session — a Skill tool
+            call, a literal slash-command string, or anything else.
+
+            Report, plainly:
+            1. What tools were available whose name suggests skill/plugin
+               invocation.
+            2. Exactly what you tried to invoke the code-review capability.
+            3. Whether it succeeded, failed, or the tool didn't exist at
+               all.
+            4. Any raw error message or output you got back.
+
+            Do not guess or hedge — if something isn't available, say so
+            directly.
