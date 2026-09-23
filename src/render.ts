@@ -1,7 +1,7 @@
 /** POC for https://github.com/abi83/interns/ **/
 import { CANVAS_WIDTH, CANVAS_HEIGHT } from "./canvas";
 import { getCellType, MAZE_COLUMNS, MAZE_ROWS, TILE_SIZE } from "./maze";
-import type { Ghost } from "./ghost";
+import type { Ghost, GhostMode } from "./ghost";
 import type { Player } from "./player";
 
 const WALL_COLOR = "#2121de";
@@ -11,6 +11,7 @@ const POWER_PELLET_RADIUS = 6;
 const PLAYER_COLOR = "#ffff00";
 export const PLAYER_RADIUS = TILE_SIZE / 2 - 1;
 const GHOST_COLORS = ["#ff0000", "#ffb8ff", "#00ffff", "#ffb851"];
+const FRIGHTENED_GHOST_COLOR = "#0000ff";
 export const GHOST_RADIUS = TILE_SIZE / 2 - 1;
 const SCORE_COLOR = "#ffffff";
 const SCORE_FONT = "12px sans-serif";
@@ -43,11 +44,12 @@ export function drawPlayer(
 
 export function drawGhosts(
   context: CanvasRenderingContext2D,
-  ghosts: readonly Ghost[]
+  ghosts: readonly Ghost[],
+  mode: GhostMode
 ): void {
-  ghosts.forEach((ghost, index) =>
-    drawGhost(context, ghost, GHOST_COLORS[index % GHOST_COLORS.length])
-  );
+  const color = (index: number) =>
+    mode === "frightened" ? FRIGHTENED_GHOST_COLOR : GHOST_COLORS[index % GHOST_COLORS.length];
+  ghosts.forEach((ghost, index) => drawGhost(context, ghost, color(index)));
 }
 
 function drawGhost(

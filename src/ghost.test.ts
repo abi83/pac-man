@@ -6,7 +6,10 @@ import {
   CHASE_MODE_TICKS,
   createGhostModeState,
   createGhosts,
+  frightenGhosts,
+  FRIGHTENED_MODE_TICKS,
   GHOST_COUNT,
+  respawnGhost,
   SCATTER_MODE_TICKS,
   updateGhost,
   type Ghost,
@@ -185,6 +188,58 @@ describe("updateGhost", () => {
       expect(ghost.direction).toBe("left");
     });
   });
+
+  describe("frightened mode", () => {
+    it("picks the open direction whose resulting tile is farthest from the player", () => {
+      // Same setup as the chase-mode test above, where the non-reversing
+      // options are [down, right] and "down" is closest to the player at
+      // (10, 6). Frightened mode should pick the other one, "right".
+      const ghost: Ghost = {
+        id: 0,
+        x: 6 * TILE_SIZE,
+        y: 1 * TILE_SIZE,
+        direction: "right",
+      };
+
+      updateGhost(ghost, "frightened", 10, 6, "up");
+
+      expect(ghost.direction).toBe("right");
+    });
+
+    it("targets the player directly regardless of ghost id", () => {
+      // Ghost id 1 would normally ambush ahead of the player in chase mode,
+      // but frightened mode targets the player's own tile for every ghost.
+      const ghost: Ghost = {
+        id: 1,
+        x: 6 * TILE_SIZE,
+        y: 1 * TILE_SIZE,
+        direction: "right",
+      };
+
+      updateGhost(ghost, "frightened", 10, 6, "up");
+
+      expect(ghost.direction).toBe("right");
+    });
+  });
+});
+
+describe("respawnGhost", () => {
+  it("moves the ghost back to its own spawn tile", () => {
+    const ghosts = createGhosts();
+    const ghost = ghosts[0];
+    const spawnX = ghost.x;
+    const spawnY = ghost.y;
+    ghost.x = 3 * TILE_SIZE;
+    ghost.y = 20 * TILE_SIZE;
+
+    respawnGhost(ghost);
+
+    expect(ghost.x).toBe(spawnX);
+    expect(ghost.y).toBe(spawnY);
+    expect(getCellType(ghost.y / TILE_SIZE, ghost.x / TILE_SIZE)).not.toBe(
+      "wall"
+    );
+  });
 });
 
 describe("ghost mode alternation", () => {
@@ -221,5 +276,58 @@ describe("ghost mode alternation", () => {
     advanceGhostMode(state);
 
     expect(state.mode).toBe("scatter");
+  });
+});
+
+describe("frightenGhosts", () => {
+  it("switches to frightened mode for the frightened duration", () => {
+    const state = createGhostModeState();
+
+    frightenGhosts(state);
+
+    expect(state.mode).toBe("frightened");
+    expect(state.ticksRemaining).toBe(FRIGHTENED_MODE_TICKS);
+  });
+
+  it("suspends the scatter/chase alternation while frightened, resuming it afterward", () => {
+    const state = createGhostModeState();
+    for (let tick = 0; tick < 10; tick++) {
+      advanceGhostMode(state);
+    }
+    const ticksLeftInScatter = state.ticksRemaining;
+
+    frightenGhosts(state);
+    for (let tick = 0; tick < FRIGHTENED_MODE_TICKS - 1; tick++) {
+      advanceGhostMode(state);
+      expect(state.mode).toBe("frightened");
+    }
+    advanceGhostMode(state);
+
+    expect(state.mode).toBe("scatter");
+    expect(state.ticksRemaining).toBe(ticksLeftInScatter);
+  });
+
+  it("refreshes the timer without losing the resume point when eaten again while frightened", () => {
+    const state = createGhostModeState();
+    for (let tick = 0; tick < 10; tick++) {
+      advanceGhostMode(state);
+    }
+    const ticksLeftInScatter = state.ticksRemaining;
+
+    frightenGhosts(state);
+    for (let tick = 0; tick < 100; tick++) {
+      advanceGhostMode(state);
+    }
+    frightenGhosts(state);
+
+    expect(state.mode).toBe("frightened");
+    expect(state.ticksRemaining).toBe(FRIGHTENED_MODE_TICKS);
+
+    for (let tick = 0; tick < FRIGHTENED_MODE_TICKS; tick++) {
+      advanceGhostMode(state);
+    }
+
+    expect(state.mode).toBe("scatter");
+    expect(state.ticksRemaining).toBe(ticksLeftInScatter);
   });
 });

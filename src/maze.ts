@@ -72,3 +72,10 @@ export function eatDot(row: number, column: number): void {
   }
   MAZE[row][column] = "path";
 }
+
+export function eatPowerPellet(row: number, column: number): void {
+  if (getCellType(row, column) !== "power-pellet") {
+    return;
+  }
+  MAZE[row][column] = "path";
+}

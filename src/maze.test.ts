@@ -2,6 +2,7 @@
 import { describe, expect, it } from "vitest";
 import {
   eatDot,
+  eatPowerPellet,
   getCellType,
   MAZE_COLUMNS,
   MAZE_ROWS,
@@ -82,6 +83,29 @@ describe("eatDot", () => {
     eatDot(0, 0);
     expect(getCellType(0, 0)).toBe("wall");
     eatDot(11, 10);
+    expect(getCellType(11, 10)).toBe("path");
+  });
+});
+
+describe("eatPowerPellet", () => {
+  it("turns a power pellet cell into a path cell", () => {
+    expect(getCellType(3, 26)).toBe("power-pellet");
+    eatPowerPellet(3, 26);
+    expect(getCellType(3, 26)).toBe("path");
+  });
+
+  it("does nothing when the cell has already been eaten", () => {
+    eatPowerPellet(27, 1);
+    eatPowerPellet(27, 1);
+    expect(getCellType(27, 1)).toBe("path");
+  });
+
+  it("leaves dot, wall, and path cells untouched", () => {
+    eatPowerPellet(1, 26);
+    expect(getCellType(1, 26)).toBe("dot");
+    eatPowerPellet(0, 0);
+    expect(getCellType(0, 0)).toBe("wall");
+    eatPowerPellet(11, 10);
     expect(getCellType(11, 10)).toBe("path");
   });
 });

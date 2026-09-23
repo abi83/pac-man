@@ -9,11 +9,16 @@ export interface Ghost {
   direction: Direction;
 }
 
-export type GhostMode = "chase" | "scatter";
+export type GhostMode = "chase" | "scatter" | "frightened";
+type ScatterOrChaseMode = "chase" | "scatter";
 
 export interface GhostModeState {
   mode: GhostMode;
   ticksRemaining: number;
+  // Snapshot of the scatter/chase alternation taken when frightened mode
+  // starts, so it can resume exactly where it was interrupted.
+  resumeMode: ScatterOrChaseMode;
+  resumeTicksRemaining: number;
 }
 
 interface Tile {
@@ -28,6 +33,9 @@ export const GHOST_COUNT = 4;
 // the 60fps tick rate driven by main.ts's requestAnimationFrame loop.
 export const SCATTER_MODE_TICKS = 420;
 export const CHASE_MODE_TICKS = 1200;
+
+// 7s of frightened movement before ghosts return to the scatter/chase cycle.
+export const FRIGHTENED_MODE_TICKS = 420;
 
 const SPAWN_ROW = 11;
 const SPAWN_COLUMNS = [11, 13, 15, 17];
@@ -72,7 +80,12 @@ export function createGhosts(): Ghost[] {
 }
 
 export function createGhostModeState(): GhostModeState {
-  return { mode: "scatter", ticksRemaining: SCATTER_MODE_TICKS };
+  return {
+    mode: "scatter",
+    ticksRemaining: SCATTER_MODE_TICKS,
+    resumeMode: "scatter",
+    resumeTicksRemaining: SCATTER_MODE_TICKS,
+  };
 }
 
 export function advanceGhostMode(state: GhostModeState): void {
@@ -80,9 +93,26 @@ export function advanceGhostMode(state: GhostModeState): void {
   if (state.ticksRemaining > 0) {
     return;
   }
+  if (state.mode === "frightened") {
+    state.mode = state.resumeMode;
+    state.ticksRemaining = state.resumeTicksRemaining;
+    return;
+  }
   state.mode = state.mode === "scatter" ? "chase" : "scatter";
   state.ticksRemaining =
     state.mode === "scatter" ? SCATTER_MODE_TICKS : CHASE_MODE_TICKS;
+}
+
+// Suspends the scatter/chase alternation for FRIGHTENED_MODE_TICKS, saving
+// its current point so advanceGhostMode can resume it afterward. Eating a
+// pellet while already frightened just refreshes the timer.
+export function frightenGhosts(state: GhostModeState): void {
+  if (state.mode !== "frightened") {
+    state.resumeMode = state.mode;
+    state.resumeTicksRemaining = state.ticksRemaining;
+    state.mode = "frightened";
+  }
+  state.ticksRemaining = FRIGHTENED_MODE_TICKS;
 }
 
 export function updateGhost(
@@ -96,9 +126,16 @@ export function updateGhost(
     const row = ghost.y / TILE_SIZE;
     const column = ghost.x / TILE_SIZE;
     const target = targetTile(ghost, mode, playerRow, playerColumn, playerDirection);
-    ghost.direction = chooseDirection(row, column, ghost.direction, target);
+    ghost.direction = chooseDirection(row, column, ghost.direction, target, mode);
   }
   move(ghost, ghost.direction);
+}
+
+export function respawnGhost(ghost: Ghost): void {
+  const column = SPAWN_COLUMNS[ghost.id];
+  ghost.x = column * TILE_SIZE;
+  ghost.y = SPAWN_ROW * TILE_SIZE;
+  ghost.direction = pickRandomDirection(openDirections(SPAWN_ROW, column));
 }
 
 function targetTile(
@@ -110,6 +147,9 @@ function targetTile(
 ): Tile {
   if (mode === "scatter") {
     return CORNER_TARGETS[ghost.id % CORNER_TARGETS.length];
+  }
+  if (mode === "frightened") {
+    return { row: playerRow, column: playerColumn };
   }
   if (ghost.id === AMBUSH_GHOST_ID) {
     const { dx, dy } = DIRECTION_VECTORS[playerDirection];
@@ -125,14 +165,17 @@ function chooseDirection(
   row: number,
   column: number,
   currentDirection: Direction,
-  target: Tile
+  target: Tile,
+  mode: GhostMode
 ): Direction {
   const options = openDirections(row, column);
   const nonReversing = options.filter(
     (direction) => direction !== OPPOSITE_DIRECTION[currentDirection]
   );
   const candidates = nonReversing.length > 0 ? nonReversing : options;
-  return closestDirection(row, column, candidates, target);
+  return mode === "frightened"
+    ? farthestDirection(row, column, candidates, target)
+    : closestDirection(row, column, candidates, target);
 }
 
 function closestDirection(
@@ -146,6 +189,20 @@ function closestDirection(
     tileDistance(resultingTile(row, column, closest), target)
       ? direction
       : closest
+  );
+}
+
+function farthestDirection(
+  row: number,
+  column: number,
+  directions: readonly Direction[],
+  target: Tile
+): Direction {
+  return directions.reduce((farthest, direction) =>
+    tileDistance(resultingTile(row, column, direction), target) >
+    tileDistance(resultingTile(row, column, farthest), target)
+      ? direction
+      : farthest
   );
 }
 

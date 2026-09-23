@@ -1,7 +1,14 @@
 /** POC for https://github.com/abi83/interns/ **/
 import { CANVAS_WIDTH, CANVAS_HEIGHT } from "./canvas";
 import { renderMaze, drawGameOver, drawGhosts, drawPlayer, drawScore } from "./render";
-import { advanceGhostMode, createGhostModeState, createGhosts, updateGhost } from "./ghost";
+import {
+  advanceGhostMode,
+  createGhostModeState,
+  createGhosts,
+  frightenGhosts,
+  respawnGhost,
+  updateGhost,
+} from "./ghost";
 import { findCatchingGhost } from "./collision";
 import { createLives, isGameOver, loseLife } from "./lives";
 import { TILE_SIZE } from "./maze";
@@ -58,19 +65,26 @@ function tick(context: CanvasRenderingContext2D): void {
     ghosts.forEach((ghost) =>
       updateGhost(ghost, ghostModeState.mode, playerRow, playerColumn, player.direction)
     );
-    eatDotUnderPlayer(player, score);
-    if (findCatchingGhost(player, ghosts)) {
-      loseLife(lives);
-      if (!isGameOver(lives)) {
-        player = createPlayer();
-        ghosts = createGhosts();
+    if (eatDotUnderPlayer(player, score)) {
+      frightenGhosts(ghostModeState);
+    }
+    const catchingGhost = findCatchingGhost(player, ghosts);
+    if (catchingGhost) {
+      if (ghostModeState.mode === "frightened") {
+        respawnGhost(catchingGhost);
+      } else {
+        loseLife(lives);
+        if (!isGameOver(lives)) {
+          player = createPlayer();
+          ghosts = createGhosts();
+        }
       }
     }
   }
   context.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
   renderMaze(context);
   drawPlayer(context, player);
-  drawGhosts(context, ghosts);
+  drawGhosts(context, ghosts, ghostModeState.mode);
   drawScore(context, score.value);
   if (isGameOver(lives)) {
     drawGameOver(context);
