@@ -1,5 +1,5 @@
 /** POC for https://github.com/abi83/interns/ **/
-import { eatDot, getCellType, MAZE_COLUMNS, TILE_SIZE } from "./maze";
+import { eatDot, eatPowerPellet, getCellType, MAZE_COLUMNS, TILE_SIZE } from "./maze";
 import { addDotScore, type Score } from "./score";
 
 export type Direction = "up" | "down" | "left" | "right";
@@ -53,16 +53,25 @@ function isTileAligned(player: Player): boolean {
   return player.x % TILE_SIZE === 0 && player.y % TILE_SIZE === 0;
 }
 
-export function eatDotUnderPlayer(player: Player, score: Score): void {
+// Returns true when a power pellet was eaten, so main.ts's tick() can
+// trigger frightened mode.
+export function eatDotUnderPlayer(player: Player, score: Score): boolean {
   if (!isTileAligned(player)) {
-    return;
+    return false;
   }
   const row = player.y / TILE_SIZE;
   const column = player.x / TILE_SIZE;
-  if (getCellType(row, column) === "dot") {
+  const cellType = getCellType(row, column);
+  if (cellType === "dot") {
     eatDot(row, column);
     addDotScore(score);
+    return false;
   }
+  if (cellType === "power-pellet") {
+    eatPowerPellet(row, column);
+    return true;
+  }
+  return false;
 }
 
 function canEnterTileAhead(player: Player, direction: Direction): boolean {

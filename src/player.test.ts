@@ -111,10 +111,11 @@ describe("eatDotUnderPlayer", () => {
     const score = createScore();
     expect(getCellType(1, 4)).toBe("dot");
 
-    eatDotUnderPlayer(player, score);
+    const atePowerPellet = eatDotUnderPlayer(player, score);
 
     expect(getCellType(1, 4)).toBe("path");
     expect(score.value).toBe(POINTS_PER_DOT);
+    expect(atePowerPellet).toBe(false);
   });
 
   it("does not eat the same dot twice", () => {
@@ -147,7 +148,7 @@ describe("eatDotUnderPlayer", () => {
     expect(score.value).toBe(0);
   });
 
-  it("does not award points or affect a power pellet", () => {
+  it("eats a power pellet, awards no dot points, and signals it was eaten", () => {
     const player: Player = {
       x: 1 * TILE_SIZE,
       y: 3 * TILE_SIZE,
@@ -157,9 +158,23 @@ describe("eatDotUnderPlayer", () => {
     const score = createScore();
     expect(getCellType(3, 1)).toBe("power-pellet");
 
-    eatDotUnderPlayer(player, score);
+    const atePowerPellet = eatDotUnderPlayer(player, score);
 
-    expect(getCellType(3, 1)).toBe("power-pellet");
+    expect(getCellType(3, 1)).toBe("path");
     expect(score.value).toBe(0);
+    expect(atePowerPellet).toBe(true);
+  });
+
+  it("does not eat the same power pellet twice", () => {
+    const player: Player = {
+      x: 1 * TILE_SIZE,
+      y: 27 * TILE_SIZE,
+      direction: "right",
+      desiredDirection: "right",
+    };
+    const score = createScore();
+
+    expect(eatDotUnderPlayer(player, score)).toBe(true);
+    expect(eatDotUnderPlayer(player, score)).toBe(false);
   });
 });
