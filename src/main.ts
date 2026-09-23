@@ -1,6 +1,14 @@
 /** POC for https://github.com/abi83/interns/ **/
 import { CANVAS_WIDTH, CANVAS_HEIGHT } from "./canvas";
-import { renderMaze, drawGameOver, drawGhosts, drawPlayer, drawScore } from "./render";
+import {
+  renderMaze,
+  drawGameOver,
+  drawGhosts,
+  drawPaused,
+  drawPlayer,
+  drawScore,
+  drawWin,
+} from "./render";
 import {
   advanceGhostMode,
   createGhostModeState,
@@ -11,7 +19,8 @@ import {
 } from "./ghost";
 import { findCatchingGhost } from "./collision";
 import { createLives, isGameOver, loseLife } from "./lives";
-import { TILE_SIZE } from "./maze";
+import { hasRemainingDots, resetMaze, TILE_SIZE } from "./maze";
+import { createPauseState, togglePause } from "./pause";
 import {
   createPlayer,
   eatDotUnderPlayer,
@@ -39,8 +48,11 @@ if (!context) {
 let player = createPlayer();
 let ghosts = createGhosts();
 const ghostModeState = createGhostModeState();
-const score = createScore();
-const lives = createLives();
+let score = createScore();
+let lives = createLives();
+const pauseState = createPauseState();
+
+const PAUSE_KEY = "p";
 
 const KEY_DIRECTIONS: Record<string, Direction> = {
   ArrowUp: "up",
@@ -49,7 +61,23 @@ const KEY_DIRECTIONS: Record<string, Direction> = {
   ArrowRight: "right",
 };
 
+function restart(): void {
+  resetMaze();
+  player = createPlayer();
+  ghosts = createGhosts();
+  score = createScore();
+  lives = createLives();
+}
+
 document.addEventListener("keydown", (event) => {
+  if (isGameOver(lives) || !hasRemainingDots()) {
+    restart();
+    return;
+  }
+  if (event.key.toLowerCase() === PAUSE_KEY) {
+    togglePause(pauseState);
+    return;
+  }
   const direction = KEY_DIRECTIONS[event.key];
   if (direction) {
     setDesiredDirection(player, direction);
@@ -57,7 +85,10 @@ document.addEventListener("keydown", (event) => {
 });
 
 function tick(context: CanvasRenderingContext2D): void {
-  if (!isGameOver(lives)) {
+  const gameOver = isGameOver(lives);
+  const won = !hasRemainingDots();
+
+  if (!gameOver && !won && !pauseState.paused) {
     updatePlayer(player);
     advanceGhostMode(ghostModeState);
     const playerRow = player.y / TILE_SIZE;
@@ -86,8 +117,12 @@ function tick(context: CanvasRenderingContext2D): void {
   drawPlayer(context, player);
   drawGhosts(context, ghosts, ghostModeState.mode);
   drawScore(context, score.value);
-  if (isGameOver(lives)) {
+  if (gameOver) {
     drawGameOver(context);
+  } else if (won) {
+    drawWin(context);
+  } else if (pauseState.paused) {
+    drawPaused(context);
   }
   requestAnimationFrame(() => tick(context));
 }

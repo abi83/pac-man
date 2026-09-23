@@ -4,8 +4,10 @@ import {
   eatDot,
   eatPowerPellet,
   getCellType,
+  hasRemainingDots,
   MAZE_COLUMNS,
   MAZE_ROWS,
+  resetMaze,
   TILE_SIZE,
 } from "./maze";
 import { CANVAS_WIDTH, CANVAS_HEIGHT } from "./canvas";
@@ -106,6 +108,37 @@ describe("eatPowerPellet", () => {
     eatPowerPellet(0, 0);
     expect(getCellType(0, 0)).toBe("wall");
     eatPowerPellet(11, 10);
+    expect(getCellType(11, 10)).toBe("path");
+  });
+});
+
+describe("hasRemainingDots", () => {
+  it("is true while dots or power pellets remain", () => {
+    expect(hasRemainingDots()).toBe(true);
+  });
+
+  it("is false once every dot and power pellet has been eaten", () => {
+    for (let row = 0; row < MAZE_ROWS; row++) {
+      for (let column = 0; column < MAZE_COLUMNS; column++) {
+        eatDot(row, column);
+        eatPowerPellet(row, column);
+      }
+    }
+    expect(hasRemainingDots()).toBe(false);
+  });
+});
+
+describe("resetMaze", () => {
+  it("restores every eaten dot and power pellet", () => {
+    resetMaze();
+    expect(hasRemainingDots()).toBe(true);
+    expect(getCellType(1, 1)).toBe("dot");
+    expect(getCellType(3, 1)).toBe("power-pellet");
+  });
+
+  it("leaves walls and paths untouched", () => {
+    resetMaze();
+    expect(getCellType(0, 0)).toBe("wall");
     expect(getCellType(11, 10)).toBe("path");
   });
 });
