@@ -1,4 +1,5 @@
 /** POC for https://github.com/abi83/interns/ **/
+import { CANVAS_WIDTH, CANVAS_HEIGHT } from "./canvas";
 import { getCellType, MAZE_COLUMNS, MAZE_ROWS, TILE_SIZE } from "./maze";
 import type { Ghost } from "./ghost";
 import type { Player } from "./player";
@@ -8,13 +9,16 @@ const DOT_COLOR = "#ffb8ae";
 const DOT_RADIUS = 2;
 const POWER_PELLET_RADIUS = 6;
 const PLAYER_COLOR = "#ffff00";
-const PLAYER_RADIUS = TILE_SIZE / 2 - 1;
+export const PLAYER_RADIUS = TILE_SIZE / 2 - 1;
 const GHOST_COLORS = ["#ff0000", "#ffb8ff", "#00ffff", "#ffb851"];
-const GHOST_RADIUS = TILE_SIZE / 2 - 1;
+export const GHOST_RADIUS = TILE_SIZE / 2 - 1;
 const SCORE_COLOR = "#ffffff";
 const SCORE_FONT = "12px sans-serif";
 const SCORE_X = 4;
 const SCORE_Y = 12;
+const GAME_OVER_COLOR = "#ffffff";
+const GAME_OVER_FONT = "24px sans-serif";
+const GAME_OVER_TEXT = "GAME OVER";
 
 export function renderMaze(context: CanvasRenderingContext2D): void {
   for (let row = 0; row < MAZE_ROWS; row++) {
@@ -67,6 +71,14 @@ export function drawScore(
   context.fillStyle = SCORE_COLOR;
   context.font = SCORE_FONT;
   context.fillText(`Score: ${score}`, SCORE_X, SCORE_Y);
+}
+
+export function drawGameOver(context: CanvasRenderingContext2D): void {
+  context.fillStyle = GAME_OVER_COLOR;
+  context.font = GAME_OVER_FONT;
+  context.textAlign = "center";
+  context.fillText(GAME_OVER_TEXT, CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2);
+  context.textAlign = "start";
 }
 
 function drawCell(
