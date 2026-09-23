@@ -17,9 +17,11 @@ const SCORE_COLOR = "#ffffff";
 const SCORE_FONT = "12px sans-serif";
 const SCORE_X = 4;
 const SCORE_Y = 12;
-const GAME_OVER_COLOR = "#ffffff";
-const GAME_OVER_FONT = "24px sans-serif";
+const OVERLAY_TEXT_COLOR = "#ffffff";
+const OVERLAY_FONT = "24px sans-serif";
 const GAME_OVER_TEXT = "GAME OVER";
+const WIN_TEXT = "YOU WIN";
+const PAUSED_TEXT = "PAUSED";
 
 export function renderMaze(context: CanvasRenderingContext2D): void {
   for (let row = 0; row < MAZE_ROWS; row++) {
@@ -76,10 +78,22 @@ export function drawScore(
 }
 
 export function drawGameOver(context: CanvasRenderingContext2D): void {
-  context.fillStyle = GAME_OVER_COLOR;
-  context.font = GAME_OVER_FONT;
+  drawOverlayText(context, GAME_OVER_TEXT);
+}
+
+export function drawWin(context: CanvasRenderingContext2D): void {
+  drawOverlayText(context, WIN_TEXT);
+}
+
+export function drawPaused(context: CanvasRenderingContext2D): void {
+  drawOverlayText(context, PAUSED_TEXT);
+}
+
+function drawOverlayText(context: CanvasRenderingContext2D, text: string): void {
+  context.fillStyle = OVERLAY_TEXT_COLOR;
+  context.font = OVERLAY_FONT;
   context.textAlign = "center";
-  context.fillText(GAME_OVER_TEXT, CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2);
+  context.fillText(text, CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2);
   context.textAlign = "start";
 }
 

@@ -79,3 +79,17 @@ export function eatPowerPellet(row: number, column: number): void {
   }
   MAZE[row][column] = "path";
 }
+
+export function hasRemainingDots(): boolean {
+  return MAZE.some((row) =>
+    row.some((cell) => cell === "dot" || cell === "power-pellet")
+  );
+}
+
+export function resetMaze(): void {
+  LAYOUT.forEach((rowLayout, row) => {
+    rowLayout.split("").forEach((char, column) => {
+      MAZE[row][column] = charToCellType(char);
+    });
+  });
+}
