@@ -9,13 +9,14 @@ on:
 permissions:
   contents: read
   issues: write
+  id-token: write
 
 env:
   ISSUE: "46"
   ALLOWED_COMMENT: "mcp__gh-issues__comment_issue"
 
 jobs:
-  probe:
+  mcp:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -103,7 +104,105 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: claude-p-probe
+          name: claude-p-mcp
           path: out/
           if-no-files-found: error
+          retention-days: 2
+
+  failures:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm install -g @anthropic-ai/claude-code@2.1.299
+      - name: Failure scenarios
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+        run: |
+          mkdir -p out
+          run() {
+            name=$1; shift
+            set +e
+            "$@" > "out/$name.jsonl" 2> "out/$name.stderr"
+            code=$?
+            set -e
+            echo "== $name: exit=$code lines=$(wc -l < out/$name.jsonl) stderr_bytes=$(wc -c < out/$name.stderr)"
+            tail -n 1 "out/$name.jsonl" | python3 -c "
+          import sys, json
+          for l in sys.stdin:
+              try: e = json.loads(l)
+              except Exception as x: print('  last line not JSON:', l[:120]); continue
+              print('  last event:', e.get('type'), e.get('subtype'), 'is_error=', e.get('is_error'), 'turns=', e.get('num_turns'), 'denials=', len(e.get('permission_denials') or []), 'errors=', str(e.get('errors'))[:120])
+          "
+            head -c 300 "out/$name.stderr" | sed 's/^/  stderr: /'
+          }
+          base="claude -p --model claude-haiku-5-5 --output-format stream-json --verbose"
+          run max_turns $base --max-turns 1 --tools "Read,Glob" --allowedTools "Read,Glob" "Use Glob to list the files, then Read three different files, then summarize them."
+          run denial $base --max-turns 4 --tools "Read,Bash" --allowedTools "Read" "Run the shell command ls using the Bash tool and report the output."
+          run killed timeout -s KILL 6 $base --max-turns 3 "Write a very long, detailed 3000-word essay about the history of Pac-Man."
+          CLAUDE_CODE_OAUTH_TOKEN=invalid run bad_token $base --max-turns 1 "Say hi."
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: claude-p-failures
+          path: out/
+          retention-days: 2
+
+  cli:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm install -g @anthropic-ai/claude-code@2.1.299
+      - name: Run CLI
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p out
+          claude -p "$(cat <<'P'
+          REPO: abi83/pac-man
+          Read src/main.ts and src/pause.ts with the Read tool, then reply with one sentence stating whether pause is implemented. Do not use any other tool.
+          P
+          )" --model claude-haiku-5-5 --max-turns 6 --tools "Read,Grep,Glob" --allowedTools "Read,Grep,Glob"             --output-format stream-json --verbose > out/execution.jsonl
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: parity-cli
+          path: out/
+          retention-days: 2
+
+  action:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - name: Run action
+        id: act
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ github.token }}
+          show_full_output: true
+          allowed_bots: "github-actions[bot]"
+          prompt: |
+            REPO: abi83/pac-man
+            Read src/main.ts and src/pause.ts with the Read tool, then reply with one sentence stating whether pause is implemented. Do not use any other tool.
+          claude_args: |
+            --model claude-haiku-5-5
+            --max-turns 6
+            --tools "Read,Grep,Glob"
+            --allowedTools "Read,Grep,Glob"
+      - run: mkdir -p out && cp "${{ steps.act.outputs.execution_file }}" out/execution.json
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: parity-action
+          path: out/
           retention-days: 2
