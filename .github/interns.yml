@@ -20,7 +20,6 @@ checks:
   #  - preview-deploy
 
 defaults:
-  launcher: true
   model: claude-sonnet-5
   max_turns: 60
   timeout_minutes: 20
