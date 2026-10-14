@@ -1,0 +1,10 @@
+name: probe-ci-cancel
+on:
+  pull_request:
+  push:
+    branches: [probe/cancel]
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - run: sleep 120
