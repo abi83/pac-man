@@ -1,0 +1,10 @@
+name: probe-ci-fail
+on:
+  pull_request:
+  push:
+    branches: [probe/fail]
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - run: exit 1
