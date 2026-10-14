@@ -18,7 +18,7 @@ import {
   updateGhost,
 } from "./ghost";
 import { findCatchingGhost } from "./collision";
-import { createLives, isGameOver, loseLife } from "./lives";
+import { createLives, isGameOver, loseLife, maybeAwardExtraLife } from "./lives";
 import { hasRemainingDots, resetMaze, TILE_SIZE } from "./maze";
 import { createPauseState, togglePause } from "./pause";
 import {
@@ -99,6 +99,7 @@ function tick(context: CanvasRenderingContext2D): void {
     if (eatDotUnderPlayer(player, score)) {
       frightenGhosts(ghostModeState);
     }
+    maybeAwardExtraLife(lives, score);
     const catchingGhost = findCatchingGhost(player, ghosts);
     if (catchingGhost) {
       if (ghostModeState.mode === "frightened") {
