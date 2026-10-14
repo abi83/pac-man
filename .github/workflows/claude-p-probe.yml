@@ -152,11 +152,12 @@ jobs:
             head -c 300 "out/$name.stderr" | sed 's/^/  stderr: /'
           }
           base="claude -p --model claude-haiku-5-5 --output-format stream-json --verbose"
-          run max_turns "Use Glob to list the files, then Read three different files, then summarize them." $base --max-turns 1 --tools "Read,Glob" --allowedTools "Read,Glob"
-          run denial_default_flag "Run the shell command ls using the Bash tool and report the output." $base --max-turns 4 --tools "Read,Bash" --allowedTools "Read"
-          run denial_explicit_default "Run the shell command ls using the Bash tool and report the output." $base --max-turns 4 --permission-mode default --tools "Read,Bash" --allowedTools "Read"
-          run killed "Write a very long, detailed 3000-word essay about the history of Pac-Man." timeout -s KILL 6 $base --max-turns 3
-          CLAUDE_CODE_OAUTH_TOKEN=invalid run bad_token "Say hi." $base --max-turns 1
+          W="Create the file out/probe.txt containing the word hi, using the Bash tool (echo hi > out/probe.txt). Then report whether it worked."
+          run deny_noflag_first "$W" $base --max-turns 4 --tools "Read,Bash" --allowedTools "Read"
+          run deny_explicit_default "$W" $base --max-turns 4 --permission-mode default --tools "Read,Bash" --allowedTools "Read"
+          run deny_noflag_readonly_tools "$W" $base --max-turns 4 --tools "Read,Grep,Glob" --allowedTools "Read,Grep,Glob"
+          run deny_noflag_last "$W" $base --max-turns 4 --tools "Read,Bash" --allowedTools "Read"
+          ls out/probe.txt 2>&1 | sed 's/^/  PROBE FILE: /'
       - uses: actions/upload-artifact@v7
         if: always()
         with:
