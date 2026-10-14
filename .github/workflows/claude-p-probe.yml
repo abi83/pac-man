@@ -1,0 +1,61 @@
+name: claude-p-probe
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - .github/workflows/claude-p-probe.yml
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install Claude Code CLI
+        id: install
+        run: |
+          start=$(date +%s)
+          npm install -g @anthropic-ai/claude-code@2.1.299
+          echo "seconds=$(( $(date +%s) - start ))" >> "$GITHUB_OUTPUT"
+          claude --version
+
+      - name: Run claude -p (hello world, debug)
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+        run: |
+          mkdir -p out
+          claude -p "Say hello world." \
+            --model claude-haiku-5-5 \
+            --max-turns 1 \
+            --output-format stream-json --verbose \
+            --debug-file out/debug.log \
+            > out/execution.jsonl 2> out/stderr.log
+
+      - name: Summarize
+        if: always()
+        run: |
+          {
+            echo "### claude -p probe"
+            echo "- CLI install seconds: ${{ steps.install.outputs.seconds }}"
+            echo "- execution.jsonl lines: $(wc -l < out/execution.jsonl)"
+            echo "- debug.log lines: $(wc -l < out/debug.log)"
+            echo '```'
+            tail -n 1 out/execution.jsonl
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: claude-p-probe
+          path: out/
+          if-no-files-found: error
+          retention-days: 2
