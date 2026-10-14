@@ -1,0 +1,10 @@
+name: probe-ci-pass
+on:
+  pull_request:
+  push:
+    branches: [probe/pass]
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo ok
