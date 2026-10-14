@@ -124,9 +124,9 @@ jobs:
         run: |
           mkdir -p out
           run() {
-            name=$1; shift
+            name=$1; prompt=$2; shift 2
             set +e
-            "$@" > "out/$name.jsonl" 2> "out/$name.stderr"
+            printf '%s' "$prompt" | "$@" > "out/$name.jsonl" 2> "out/$name.stderr"
             code=$?
             set -e
             echo "== $name: exit=$code lines=$(wc -l < out/$name.jsonl) stderr_bytes=$(wc -c < out/$name.stderr)"
@@ -137,13 +137,26 @@ jobs:
               except Exception as x: print('  last line not JSON:', l[:120]); continue
               print('  last event:', e.get('type'), e.get('subtype'), 'is_error=', e.get('is_error'), 'turns=', e.get('num_turns'), 'denials=', len(e.get('permission_denials') or []), 'errors=', str(e.get('errors'))[:120])
           "
+            python3 - "out/$name.jsonl" <<'PY'
+          import sys, json
+          for l in open(sys.argv[1]):
+              try: e = json.loads(l)
+              except ValueError: continue
+              if e.get("type") == "system" and e.get("subtype") == "init":
+                  print("  init permissionMode:", e.get("permissionMode"))
+              if e.get("type") == "user":
+                  for b in e.get("message", {}).get("content") or []:
+                      if isinstance(b, dict) and b.get("type") == "tool_result":
+                          print("  tool_result is_error=", b.get("is_error"), str(b.get("content"))[:140].replace("\n", " "))
+          PY
             head -c 300 "out/$name.stderr" | sed 's/^/  stderr: /'
           }
           base="claude -p --model claude-haiku-5-5 --output-format stream-json --verbose"
-          run max_turns $base --max-turns 1 --tools "Read,Glob" --allowedTools "Read,Glob" "Use Glob to list the files, then Read three different files, then summarize them."
-          run denial $base --max-turns 4 --tools "Read,Bash" --allowedTools "Read" "Run the shell command ls using the Bash tool and report the output."
-          run killed timeout -s KILL 6 $base --max-turns 3 "Write a very long, detailed 3000-word essay about the history of Pac-Man."
-          CLAUDE_CODE_OAUTH_TOKEN=invalid run bad_token $base --max-turns 1 "Say hi."
+          run max_turns "Use Glob to list the files, then Read three different files, then summarize them." $base --max-turns 1 --tools "Read,Glob" --allowedTools "Read,Glob"
+          run denial_default_flag "Run the shell command ls using the Bash tool and report the output." $base --max-turns 4 --tools "Read,Bash" --allowedTools "Read"
+          run denial_explicit_default "Run the shell command ls using the Bash tool and report the output." $base --max-turns 4 --permission-mode default --tools "Read,Bash" --allowedTools "Read"
+          run killed "Write a very long, detailed 3000-word essay about the history of Pac-Man." timeout -s KILL 6 $base --max-turns 3
+          CLAUDE_CODE_OAUTH_TOKEN=invalid run bad_token "Say hi." $base --max-turns 1
       - uses: actions/upload-artifact@v7
         if: always()
         with:
