@@ -1,0 +1,18 @@
+# Temporary probe for abi83/interns#321: records which events fire. Remove after.
+name: probe-trigger
+run-name: "${{ github.event_name }} | suite_app=${{ github.event.check_suite.app.slug }} suite_conclusion=${{ github.event.check_suite.conclusion }} suite_branch=${{ github.event.check_suite.head_branch }} suite_prs=${{ toJSON(github.event.check_suite.pull_requests.*.number) }} | wr_name=${{ github.event.workflow_run.name }} wr_conclusion=${{ github.event.workflow_run.conclusion }} wr_branch=${{ github.event.workflow_run.head_branch }} wr_prs=${{ toJSON(github.event.workflow_run.pull_requests.*.number) }}"
+
+on:
+  check_suite:
+    types: [completed]
+  workflow_run:
+    workflows: [probe-ci-pass, probe-ci-fail, probe-ci-cancel]
+    types: [completed]
+
+permissions: {}
+
+jobs:
+  record:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "event=${{ github.event_name }}"
